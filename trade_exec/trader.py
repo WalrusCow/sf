@@ -1,6 +1,4 @@
 import json
-import os
-import time
 
 import requests
 
@@ -28,12 +26,15 @@ class Trader():
         request_data = json.dumps(request_data)
 
         auth_header = {'X-Starfighter-Authorization': self.api_key}
-        return requests.request(
+        ret = requests.request(
             method,
             url,
             data=request_data,
             headers=auth_header,
         ).json()
+        if not ret['ok']:
+            raise ValueError('API response not ok: {}'.format(ret))
+        return ret
 
     def quote(self, stock):
         quote_url = self.url('/stocks/{stock}/quote').format(stock=stock)
@@ -58,32 +59,3 @@ class Trader():
         buy_url = self.url('/stocks/{stock}/orders').format(stock=stock)
         return self.request('post', buy_url, data=order)
 
-
-def buy_in_blocks(trader, stock, total_to_buy, block_size):
-    bought = 0
-    while bought < total_to_buy:
-        quote = trader.quote(stock)
-        try:
-            price = int(quote['ask'] * 1.01)
-        except:
-            print(quote)
-        buy_status = trader.buy(stock, price, block_size, type='immediate-or-cancel')
-        print(buy_status)
-        bought += buy_status['totalFilled']
-        time.sleep(1)
-
-def main(api_key):
-    account = 'MAA52701793'
-    venue = 'NDYPEX'
-    stock = 'ITBE'
-
-    trader = Trader(api_key, venue, account)
-    buy_in_blocks(trader, stock, 40000, 100)
-
-if __name__ == '__main__':
-    try:
-        api_key = os.environ['SF_API_KEY']
-    except:
-        print('No API key found. Did you forget to set SF_API_KEY?\n\n')
-        raise
-    main(api_key)
